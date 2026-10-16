@@ -1,15 +1,92 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  DEVELOPER
+  VIEWER
+}
+
+model Organization {
+  id        String    @id @default(cuid())
+  name      String
+  createdAt DateTime  @default(now())
+  users     User[]
+  projects  Project[]
+}
+
+model User {
+  id           String       @id @default(cuid())
+  email        String       @unique
+  passwordHash String
+  role         Role         @default(DEVELOPER)
+  orgId        String
+  org          Organization @relation(fields: [orgId], references: [id])
+  auditLogs    AuditLog[]
+  createdAt    DateTime     @default(now())
+}
+
+model Project {
+  id           String        @id @default(cuid())
+  name         String
+  key          String
+  orgId        String
+  org          Organization  @relation(fields: [orgId], references: [id])
+  environments Environment[]
+  flags        Flag[]
+
+  @@unique([orgId, key])
+}
+
+model Environment {
+  id        String       @id @default(cuid())
+  name      String
+  sdkKey    String       @unique @default(cuid())
+  projectId String
+  project   Project      @relation(fields: [projectId], references: [id])
+  configs   FlagConfig[]
+}
+
+model Flag {
+  id          String       @id @default(cuid())
+  key         String
+  description String?
+  projectId   String
+  project     Project      @relation(fields: [projectId], references: [id])
+  configs     FlagConfig[]
+  createdAt   DateTime     @default(now())
+
+  @@unique([projectId, key])
+}
+
+model FlagConfig {
+  id                String      @id @default(cuid())
+  flagId            String
+  flag              Flag        @relation(fields: [flagId], references: [id])
+  environmentId     String
+  environment       Environment @relation(fields: [environmentId], references: [id])
+  enabled           Boolean     @default(false)
+  rolloutPercentage Int         @default(0)
+  rules             Json        @default("[]")
+  updatedAt         DateTime    @updatedAt
+
+  @@unique([flagId, environmentId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  action     String
+  entityType String
+  entityId   String
+  before     Json?
+  after      Json?
+  createdAt  DateTime @default(now())
 }
