@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { writeAudit } from "../lib/audit";
 import { authenticate, requireRole, AuthedRequest } from "../middleware/auth";
+import { notifyProject } from "../lib/notify";
 
 export const projectsRouter = Router();
 const param = (v: string | string[]): string => (Array.isArray(v) ? v[0] : v);
@@ -78,6 +79,7 @@ projectsRouter.post("/:projectId/flags", requireRole("ADMIN", "DEVELOPER"), asyn
     include: { configs: true },
   });
   await writeAudit({ userId: req.user!.sub, action: "flag.create", entityType: "Flag", entityId: flag.id, after: { key: flag.key } });
+   await notifyProject(project.id);
   res.status(201).json(flag);
 });
 
@@ -139,6 +141,7 @@ projectsRouter.patch(
       before: { enabled: config.enabled, rolloutPercentage: config.rolloutPercentage, rules: config.rules },
       after: { enabled: updated.enabled, rolloutPercentage: updated.rolloutPercentage, rules: updated.rules },
     });
+        await notifyProject(project.id);
     res.json(updated);
   }
 );
@@ -154,6 +157,7 @@ projectsRouter.delete("/:projectId/flags/:flagId", requireRole("ADMIN"), async (
   await prisma.flagConfig.deleteMany({ where: { flagId: flag.id } });
   await prisma.flag.delete({ where: { id: flag.id } });
   await writeAudit({ userId: req.user!.sub, action: "flag.delete", entityType: "Flag", entityId: flag.id, before: { key: flag.key } });
+    await notifyProject(project.id);
   res.status(204).send();
 });
 
