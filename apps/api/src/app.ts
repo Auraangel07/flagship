@@ -1,5 +1,7 @@
 import express from "express";
 import cors from "cors";
+import { authRouter } from "./routes/auth";
+import { authenticate, requireRole } from "./middleware/auth";
 
 export const app = express();
 app.use(cors());
@@ -7,4 +9,11 @@ app.use(express.json());
 
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", service: "flagship-api" });
+});
+
+app.use("/auth", authRouter);
+
+// Demo route to prove RBAC works (admins only).
+app.get("/admin/ping", authenticate, requireRole("ADMIN"), (_req, res) => {
+  res.json({ message: "pong, admin" });
 });
