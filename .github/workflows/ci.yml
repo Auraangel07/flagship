@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: flagship
+          POSTGRES_PASSWORD: flagship
+          POSTGRES_DB: flagship
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U flagship"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://flagship:flagship@localhost:5432/flagship
+      JWT_SECRET: ci-only-secret-not-used-anywhere-else
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+        working-directory: apps/api
+      - run: npx prisma migrate deploy
+        working-directory: apps/api
+      - run: npm run lint
+      - run: npm test
