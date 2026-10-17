@@ -1,0 +1,12 @@
+body { margin: 0; background: #0b0b0f; color: #eee; font-family: system-ui, sans-serif; }
+.shop { max-width: 760px; margin: 0 auto; padding: 24px; }
+.banner { background: linear-gradient(90deg,#f97316,#ef4444); padding: 14px; border-radius: 10px; text-align: center; font-weight: 600; margin-bottom: 20px; animation: pop .4s ease; }
+@keyframes pop { from { transform: translateY(-12px); opacity: 0 } to { transform: none; opacity: 1 } }
+header { display: flex; justify-content: space-between; align-items: center; }
+.grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin: 24px 0; }
+.card { background: #17171f; border: 1px solid #2a2a35; border-radius: 12px; padding: 18px; }
+.checkout { text-align: center; margin: 28px 0; }
+button { padding: 14px 28px; border-radius: 10px; border: 0; font-size: 16px; cursor: pointer; }
+.old { background: #374151; color: #fff; }
+.new { background: linear-gradient(90deg,#22c55e,#06b6d4); color: #031; font-weight: 700; animation: pop .4s ease; }
+footer { text-align: center; color: #888; font-size: 13px; }
