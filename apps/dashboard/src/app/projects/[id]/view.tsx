@@ -78,7 +78,7 @@ export default function ProjectView({ id }: { id: string }) {
   return (
     <main className="mx-auto max-w-4xl space-y-8 p-6">
       <header className="space-y-2">
-        <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">
+        <Link href="/projects" className="text-sm text-muted-foreground hover:underline">
           ← All projects
         </Link>
         <h1 className="text-3xl font-bold">{project.data?.name ?? "Project"}</h1>

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { FlagshipClient } from "@flagship/sdk";
 import "./App.css";
 
@@ -12,27 +12,31 @@ const PRODUCTS = [
 ];
 
 export default function App() {
-  const clientRef = useRef<FlagshipClient | null>(null);
+  const [client, setClient] = useState<FlagshipClient | null>(null);
   const [, setTick] = useState(0);
   const [ready, setReady] = useState(false);
   const [plan, setPlan] = useState("free");
 
   useEffect(() => {
-    const client = new FlagshipClient({
+    const c = new FlagshipClient({
       sdkKey: SDK_KEY,
       baseUrl: API,
       user: { key: "demo-user", plan },
     });
-    clientRef.current = client;
-    client.init().then(() => setReady(true)).catch(() => setReady(false));
-    const off = client.onChange(() => setTick((t) => t + 1));
+    c.init()
+      .then(() => {
+        setClient(c);
+        setReady(true);
+      })
+      .catch(() => setReady(false));
+    const off = c.onChange(() => setTick((t) => t + 1));
     return () => {
       off();
-      client.close();
+      c.close();
     };
   }, [plan]);
 
-  const on = (k: string) => clientRef.current?.isEnabled(k) ?? false;
+  const on = (k: string) => client?.isEnabled(k) ?? false;
 
   return (
     <div className="shop">

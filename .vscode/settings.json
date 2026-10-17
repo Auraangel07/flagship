@@ -1,9 +1,5 @@
 {
-  "eslint.workingDirectories": [
-    { "directory": "apps/api", "changeProcessCWD": true },
-    { "directory": "apps/dashboard", "changeProcessCWD": true },
-    { "directory": "apps/demo", "changeProcessCWD": true },
-    { "directory": "packages/sdk", "changeProcessCWD": true }
-  ],
+  "eslint.useFlatConfig": true,
+  "eslint.workingDirectories": [{ "mode": "auto" }],
   "css.lint.unknownAtRules": "ignore"
 }

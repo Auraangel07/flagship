@@ -24,7 +24,7 @@ export default function LoginPage() {
       const body = mode === "login" ? { email, password } : { email, password, orgName };
       const session = await api<Session>(`/auth/${mode}`, { method: "POST", body: JSON.stringify(body) });
       saveSession(session);
-      router.push("/");
+        router.push("/projects");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong");
     } finally {
