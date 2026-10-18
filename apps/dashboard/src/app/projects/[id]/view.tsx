@@ -10,9 +10,10 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { api, AuditEntry, Flag, FlagConfig, Project } from "@/lib/api";
+import { api, AuditEntry, Flag, FlagConfig, Project, Rule } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
 import { TopNav } from "@/components/TopNav";
+import { RulesEditor } from "@/components/RulesEditor";
 
 function describe(a: AuditEntry): string {
   const b = a.before as Record<string, unknown> | null;
@@ -56,7 +57,11 @@ export default function ProjectView({ id }: { id: string }) {
   });
 
   const createFlag = useMutation({
-    mutationFn: () => api(`/projects/${id}/flags`, { method: "POST", body: JSON.stringify({ key: flagKey, description: flagDesc || undefined }) }),
+    mutationFn: () =>
+      api(`/projects/${id}/flags`, {
+        method: "POST",
+        body: JSON.stringify({ key: flagKey, description: flagDesc || undefined }),
+      }),
     onSuccess: () => {
       setFlagKey("");
       setFlagDesc("");
@@ -68,8 +73,15 @@ export default function ProjectView({ id }: { id: string }) {
   });
 
   const updateConfig = useMutation({
-    mutationFn: (v: { flagId: string; envId: string; patch: Partial<Pick<FlagConfig, "enabled" | "rolloutPercentage">> }) =>
-      api(`/projects/${id}/flags/${v.flagId}/environments/${v.envId}`, { method: "PATCH", body: JSON.stringify(v.patch) }),
+    mutationFn: (v: {
+      flagId: string;
+      envId: string;
+      patch: Partial<Pick<FlagConfig, "enabled" | "rolloutPercentage" | "rules">>;
+    }) =>
+      api(`/projects/${id}/flags/${v.flagId}/environments/${v.envId}`, {
+        method: "PATCH",
+        body: JSON.stringify(v.patch),
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["flags", id] });
       qc.invalidateQueries({ queryKey: ["audit"] });
@@ -166,7 +178,9 @@ export default function ProjectView({ id }: { id: string }) {
                     <Switch
                       checked={cfg.enabled}
                       disabled={!canEdit}
-                      onCheckedChange={(enabled) => updateConfig.mutate({ flagId: flag.id, envId: cfg.environmentId, patch: { enabled } })}
+                      onCheckedChange={(enabled) =>
+                        updateConfig.mutate({ flagId: flag.id, envId: cfg.environmentId, patch: { enabled } })
+                      }
                     />
                   </div>
                 </CardHeader>
@@ -187,11 +201,13 @@ export default function ProjectView({ id }: { id: string }) {
                       }}
                     />
                   </div>
-                  {cfg.rules.length > 0 && (
-                    <p className="text-xs text-muted-foreground">
-                      Targeting: {cfg.rules.map((r) => `${r.attribute} ${r.operator} ${r.values.join(", ")}`).join(" | ")}
-                    </p>
-                  )}
+                  <RulesEditor
+                    rules={cfg.rules}
+                    disabled={!canEdit}
+                    onSave={(rules: Rule[]) =>
+                      updateConfig.mutate({ flagId: flag.id, envId: cfg.environmentId, patch: { rules } })
+                    }
+                  />
                   {role === "ADMIN" && (
                     <Button variant="ghost" size="sm" className="text-destructive" onClick={() => deleteFlag.mutate(flag.id)}>
                       Delete flag
