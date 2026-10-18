@@ -86,6 +86,14 @@ describe("projects, flags, and audit log", () => {
     expect(update.before.enabled).toBe(false);
     expect(update.after.enabled).toBe(true);
   });
+  it("explains an evaluation", async () => {
+  const res = await request(app)
+    .post(`/projects/${projectId}/flags/${flagId}/environments/${envId}/explain`)
+    .set("Authorization", `Bearer ${token}`)
+    .send({ key: "u1", plan: "free" });
+  expect(res.status).toBe(200);
+  expect(typeof res.body.explanation).toBe("string");
+});
 
   it("deletes a flag", async () => {
     const res = await request(app)

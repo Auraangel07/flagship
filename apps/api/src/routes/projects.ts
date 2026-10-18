@@ -4,7 +4,8 @@ import { prisma } from "../lib/prisma";
 import { writeAudit } from "../lib/audit";
 import { authenticate, requireRole, AuthedRequest } from "../middleware/auth";
 import { notifyProject } from "../lib/notify";
-
+import { evaluate, bucket } from "../engine/evaluate";
+import type { Rule } from "../engine/evaluate";
 export const projectsRouter = Router();
 const param = (v: string | string[]): string => (Array.isArray(v) ? v[0] : v);
 projectsRouter.use(authenticate);
@@ -161,7 +162,50 @@ projectsRouter.delete("/:projectId/flags/:flagId", requireRole("ADMIN"), async (
   res.status(204).send();
 });
 
-// Audit trail for the org
+const explainSchema = z.object({ key: z.string().min(1) }).catchall(z.string());
+
+// Explain how a flag evaluates for a given user in one environment
+projectsRouter.post(
+  "/:projectId/flags/:flagId/environments/:envId/explain",
+  async (req: AuthedRequest, res) => {
+    const parsed = explainSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+    const project = await getOwnedProject(param(req.params.projectId), req.user!.orgId);
+    if (!project) return res.status(404).json({ error: "Project not found" });
+
+    const config = await prisma.flagConfig.findFirst({
+      where: {
+        flagId: param(req.params.flagId),
+        environmentId: param(req.params.envId),
+        flag: { projectId: project.id },
+      },
+      include: { flag: true },
+    });
+    if (!config) return res.status(404).json({ error: "Flag config not found" });
+
+    const rules = config.rules as unknown as Rule[];
+    const user = parsed.data;
+    const result = evaluate(config.flag.key, { enabled: config.enabled, rolloutPercentage: config.rolloutPercentage, rules }, user);
+    const userBucket = bucket(config.flag.key, user.key);
+    const matched = rules.find((r) => {
+      const actual = user[r.attribute];
+      if (actual === undefined) return false;
+      if (r.operator === "equals") return actual === r.values[0];
+      if (r.operator === "not_equals") return actual !== r.values[0];
+      if (r.operator === "in") return r.values.includes(actual);
+      return r.values.some((v) => actual.includes(v));
+    });
+
+    let explanation: string;
+    if (result.reason === "DISABLED") explanation = "The flag is switched off in this environment, so everyone gets OFF.";
+    else if (result.reason === "RULE_MATCH") explanation = `ON because the rule "${matched?.attribute} ${matched?.operator} ${matched?.values.join(", ")}" matched this user.`;
+    else if (result.reason === "ROLLOUT") explanation = `ON because this user's rollout bucket is ${userBucket}, which is below the ${config.rolloutPercentage}% threshold.`;
+    else explanation = `OFF because no rule matched and this user's rollout bucket is ${userBucket}, which is not below the ${config.rolloutPercentage}% threshold.`;
+
+    res.json({ ...result, bucket: userBucket, rolloutPercentage: config.rolloutPercentage, explanation });
+  }
+);
 projectsRouter.get("/audit/logs", async (req: AuthedRequest, res) => {
   const logs = await prisma.auditLog.findMany({
     where: { user: { orgId: req.user!.orgId } },

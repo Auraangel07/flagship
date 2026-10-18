@@ -14,7 +14,7 @@ import { api, AuditEntry, Flag, FlagConfig, Project, Rule } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
 import { TopNav } from "@/components/TopNav";
 import { RulesEditor } from "@/components/RulesEditor";
-
+import { Explainer } from "@/components/Explainer";
 function describe(a: AuditEntry): string {
   const b = a.before as Record<string, unknown> | null;
   const n = a.after as Record<string, unknown> | null;
@@ -208,6 +208,7 @@ export default function ProjectView({ id }: { id: string }) {
                       updateConfig.mutate({ flagId: flag.id, envId: cfg.environmentId, patch: { rules } })
                     }
                   />
+                  <Explainer projectId={id} flagId={flag.id} envId={cfg.environmentId} />
                   {role === "ADMIN" && (
                     <Button variant="ghost" size="sm" className="text-destructive" onClick={() => deleteFlag.mutate(flag.id)}>
                       Delete flag
