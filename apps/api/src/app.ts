@@ -6,13 +6,15 @@ import { authRouter } from "./routes/auth";
 import { projectsRouter } from "./routes/projects";
 import { sdkRouter } from "./routes/sdk";
 import { authenticate, requireRole } from "./middleware/auth";
+import { prisma } from "./lib/prisma";
+import { env } from "./env";
 
 export const app = express();
 
 const isTest = process.env.NODE_ENV === "test";
 
 app.use(helmet());
-app.use(cors());
+app.use(cors({ origin: env.CORS_ORIGIN ? env.CORS_ORIGIN.split(",") : true }));
 app.use(express.json({ limit: "100kb" }));
 
 // Strict limit on login/register to slow down password guessing
@@ -32,9 +34,27 @@ const sdkLimiter = rateLimit({
   legacyHeaders: false,
   skip: () => isTest,
 });
+app.get("/", (_req, res) => {
+  res.json({
+    name: "Flagship API",
+    status: "ok",
+    endpoints: ["/health", "/ready", "/auth", "/projects", "/v1"],
+  });
+});
 
+// Liveness: the process is up. Cheap, no dependencies.
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", service: "flagship-api" });
+});
+
+// Readiness: the process can serve traffic (database reachable).
+app.get("/ready", async (_req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ status: "ready", database: "up" });
+  } catch {
+    res.status(503).json({ status: "unavailable", database: "down" });
+  }
 });
 
 app.use("/auth", authLimiter, authRouter);

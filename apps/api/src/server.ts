@@ -1,5 +1,4 @@
-import "dotenv/config";
+import { env } from "./env";
 import { app } from "./app";
 
-const port = process.env.PORT ?? 4000;
-app.listen(port, () => console.log(`Flagship API on :${port}`));
+app.listen(env.PORT, () => console.log(`Flagship API on :${env.PORT}`));
