@@ -82,7 +82,7 @@ describe("projects, flags, and audit log", () => {
       .get("/projects/audit/logs")
       .set("Authorization", `Bearer ${token}`);
     expect(res.status).toBe(200);
-    const update = res.body.find((l: { action: string }) => l.action === "flag.update");
+    const update = res.body.items.find((l: { action: string }) => l.action === "flag.update");
     expect(update.before.enabled).toBe(false);
     expect(update.after.enabled).toBe(true);
   });

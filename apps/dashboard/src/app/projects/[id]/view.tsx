@@ -52,7 +52,7 @@ export default function ProjectView({ id }: { id: string }) {
   });
   const audit = useQuery({
     queryKey: ["audit"],
-    queryFn: () => api<AuditEntry[]>("/projects/audit/logs"),
+      queryFn: () => api<{ items: AuditEntry[] }>("/projects/audit/logs?limit=10").then((r) => r.items),
     enabled: !!session,
   });
 

@@ -22,3 +22,10 @@ export function connectedClients(): number {
   for (const set of clients.values()) n += set.size;
   return n;
 }
+
+export function closeAllClients() {
+  for (const set of clients.values()) {
+    for (const res of set) res.end();
+    set.clear();
+  }
+}

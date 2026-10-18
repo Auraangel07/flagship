@@ -6,6 +6,7 @@ import { authenticate, requireRole, AuthedRequest } from "../middleware/auth";
 import { notifyProject } from "../lib/notify";
 import { evaluate, bucket } from "../engine/evaluate";
 import type { Rule } from "../engine/evaluate";
+
 export const projectsRouter = Router();
 const param = (v: string | string[]): string => (Array.isArray(v) ? v[0] : v);
 projectsRouter.use(authenticate);
@@ -34,7 +35,13 @@ projectsRouter.post("/", requireRole("ADMIN", "DEVELOPER"), async (req: AuthedRe
     },
     include: { environments: true },
   });
-  await writeAudit({ userId: sub, action: "project.create", entityType: "Project", entityId: project.id, after: { name: project.name, key: project.key } });
+  await writeAudit({
+    userId: sub,
+    action: "project.create",
+    entityType: "Project",
+    entityId: project.id,
+    after: { name: project.name, key: project.key },
+  });
   res.status(201).json(project);
 });
 
@@ -61,7 +68,6 @@ projectsRouter.post("/:projectId/flags", requireRole("ADMIN", "DEVELOPER"), asyn
   const parsed = flagSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
 
-
   const project = await getOwnedProject(param(req.params.projectId), req.user!.orgId);
   if (!project) return res.status(404).json({ error: "Project not found" });
 
@@ -79,8 +85,14 @@ projectsRouter.post("/:projectId/flags", requireRole("ADMIN", "DEVELOPER"), asyn
     },
     include: { configs: true },
   });
-  await writeAudit({ userId: req.user!.sub, action: "flag.create", entityType: "Flag", entityId: flag.id, after: { key: flag.key } });
-   await notifyProject(project.id);
+  await writeAudit({
+    userId: req.user!.sub,
+    action: "flag.create",
+    entityType: "Flag",
+    entityId: flag.id,
+    after: { key: flag.key },
+  });
+  await notifyProject(project.id);
   res.status(201).json(flag);
 });
 
@@ -142,7 +154,7 @@ projectsRouter.patch(
       before: { enabled: config.enabled, rolloutPercentage: config.rolloutPercentage, rules: config.rules },
       after: { enabled: updated.enabled, rolloutPercentage: updated.rolloutPercentage, rules: updated.rules },
     });
-        await notifyProject(project.id);
+    await notifyProject(project.id);
     res.json(updated);
   }
 );
@@ -157,8 +169,14 @@ projectsRouter.delete("/:projectId/flags/:flagId", requireRole("ADMIN"), async (
 
   await prisma.flagConfig.deleteMany({ where: { flagId: flag.id } });
   await prisma.flag.delete({ where: { id: flag.id } });
-  await writeAudit({ userId: req.user!.sub, action: "flag.delete", entityType: "Flag", entityId: flag.id, before: { key: flag.key } });
-    await notifyProject(project.id);
+  await writeAudit({
+    userId: req.user!.sub,
+    action: "flag.delete",
+    entityType: "Flag",
+    entityId: flag.id,
+    before: { key: flag.key },
+  });
+  await notifyProject(project.id);
   res.status(204).send();
 });
 
@@ -186,7 +204,11 @@ projectsRouter.post(
 
     const rules = config.rules as unknown as Rule[];
     const user = parsed.data;
-    const result = evaluate(config.flag.key, { enabled: config.enabled, rolloutPercentage: config.rolloutPercentage, rules }, user);
+    const result = evaluate(
+      config.flag.key,
+      { enabled: config.enabled, rolloutPercentage: config.rolloutPercentage, rules },
+      user
+    );
     const userBucket = bucket(config.flag.key, user.key);
     const matched = rules.find((r) => {
       const actual = user[r.attribute];
@@ -198,20 +220,34 @@ projectsRouter.post(
     });
 
     let explanation: string;
-    if (result.reason === "DISABLED") explanation = "The flag is switched off in this environment, so everyone gets OFF.";
-    else if (result.reason === "RULE_MATCH") explanation = `ON because the rule "${matched?.attribute} ${matched?.operator} ${matched?.values.join(", ")}" matched this user.`;
-    else if (result.reason === "ROLLOUT") explanation = `ON because this user's rollout bucket is ${userBucket}, which is below the ${config.rolloutPercentage}% threshold.`;
-    else explanation = `OFF because no rule matched and this user's rollout bucket is ${userBucket}, which is not below the ${config.rolloutPercentage}% threshold.`;
+    if (result.reason === "DISABLED") {
+      explanation = "The flag is switched off in this environment, so everyone gets OFF.";
+    } else if (result.reason === "RULE_MATCH") {
+      explanation = `ON because the rule "${matched?.attribute} ${matched?.operator} ${matched?.values.join(", ")}" matched this user.`;
+    } else if (result.reason === "ROLLOUT") {
+      explanation = `ON because this user's rollout bucket is ${userBucket}, which is below the ${config.rolloutPercentage}% threshold.`;
+    } else {
+      explanation = `OFF because no rule matched and this user's rollout bucket is ${userBucket}, which is not below the ${config.rolloutPercentage}% threshold.`;
+    }
 
     res.json({ ...result, bucket: userBucket, rolloutPercentage: config.rolloutPercentage, explanation });
   }
 );
+
+// Audit trail for the org, cursor-paginated
 projectsRouter.get("/audit/logs", async (req: AuthedRequest, res) => {
-  const logs = await prisma.auditLog.findMany({
+  const limit = Math.min(Number(req.query.limit) || 20, 100);
+  const cursor = typeof req.query.cursor === "string" ? req.query.cursor : undefined;
+
+  const rows = await prisma.auditLog.findMany({
     where: { user: { orgId: req.user!.orgId } },
-    orderBy: { createdAt: "desc" },
-    take: 50,
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: limit + 1,
+    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     include: { user: { select: { email: true } } },
   });
-  res.json(logs);
+
+  const hasMore = rows.length > limit;
+  const items = hasMore ? rows.slice(0, limit) : rows;
+  res.json({ items, nextCursor: hasMore ? items[items.length - 1].id : null });
 });

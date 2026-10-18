@@ -30,6 +30,8 @@ model User {
   org          Organization @relation(fields: [orgId], references: [id])
   auditLogs    AuditLog[]
   createdAt    DateTime     @default(now())
+
+  @@index([orgId])
 }
 
 model Project {
@@ -63,6 +65,7 @@ model Flag {
   createdAt   DateTime     @default(now())
 
   @@unique([projectId, key])
+  @@index([projectId, createdAt])
 }
 
 model FlagConfig {
@@ -89,4 +92,6 @@ model AuditLog {
   before     Json?
   after      Json?
   createdAt  DateTime @default(now())
+
+  @@index([userId, createdAt])
 }
