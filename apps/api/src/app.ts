@@ -8,9 +8,27 @@ import { sdkRouter } from "./routes/sdk";
 import { authenticate, requireRole } from "./middleware/auth";
 import { prisma } from "./lib/prisma";
 import { env } from "./env";
+import pinoHttp from "pino-http";
+import { randomUUID } from "node:crypto";
+import { logger } from "./lib/logger";
 
 export const app = express();
-
+app.use(
+  pinoHttp({
+    logger,
+    genReqId: (req, res) => {
+      const id = (req.headers["x-request-id"] as string) || randomUUID();
+      res.setHeader("x-request-id", id);
+      return id;
+    },
+    serializers: {
+      req: (req) => ({ id: req.id, method: req.method, url: req.url }),
+      res: (res) => ({ statusCode: res.statusCode }),
+    },
+    customSuccessMessage: (req, res) => `${req.method} ${req.originalUrl} ${res.statusCode}`,
+    autoLogging: { ignore: (req) => req.url === "/health" || req.url === "/ready" },
+  })
+);
 const isTest = process.env.NODE_ENV === "test";
 
 app.use(helmet());
