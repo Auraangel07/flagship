@@ -80,4 +80,17 @@ describe("FlagshipClient", () => {
     const client = make(mockFetch([{}], false, 401));
     await expect(client.init()).rejects.toThrow("401");
   });
+
+    it("batches reported events to /v1/events", async () => {
+    const f = mockFetch([on]);
+    const client = make(f);
+    await client.init();
+    client.reportExposure("beta-ui");
+    client.reportError("beta-ui");
+    await client.flush();
+    const calls = (f as unknown as ReturnType<typeof vi.fn>).mock.calls as [string, RequestInit][];
+    const last = calls[calls.length - 1];
+    expect(last[0]).toBe("http://localhost:4000/v1/events");
+    expect(JSON.parse(last[1].body as string).events).toHaveLength(2);
+  });
 });

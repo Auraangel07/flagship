@@ -144,7 +144,11 @@ projectsRouter.patch(
 
     const updated = await prisma.flagConfig.update({
       where: { id: config.id },
-      data: parsed.data,
+      data: {
+        ...parsed.data,
+        // Re-enabling a flag clears the "auto-rolled back" state.
+        ...(parsed.data.enabled === true ? { rolledBackAt: null } : {}),
+      },
     });
     await writeAudit({
       userId: req.user!.sub,

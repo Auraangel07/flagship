@@ -37,6 +37,18 @@ export default function App() {
   }, [plan]);
 
   const on = (k: string) => client?.isEnabled(k) ?? false;
+  const checkoutOn = on("new-checkout");
+
+  useEffect(() => {
+    if (client && checkoutOn) client.reportExposure("new-checkout");
+  }, [client, checkoutOn]);
+
+  function breakIt() {
+    if (!client) return;
+    for (let i = 0; i < 20; i++) client.reportExposure("new-checkout");
+    for (let i = 0; i < 6; i++) client.reportError("new-checkout");
+    void client.flush();
+  }
 
   return (
     <div className="shop">
@@ -62,8 +74,13 @@ export default function App() {
         ))}
       </div>
       <div className="checkout">
-        {on("new-checkout") ? (
-          <button className="new">⚡ One-tap checkout</button>
+        {checkoutOn ? (
+          <>
+            <button className="new">⚡ One-tap checkout</button>
+            <button className="old" style={{ marginLeft: 12 }} onClick={breakIt}>
+              💥 Break it
+            </button>
+          </>
         ) : (
           <button className="old">Proceed to checkout</button>
         )}

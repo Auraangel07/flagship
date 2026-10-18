@@ -15,6 +15,7 @@ import { useSession } from "@/lib/useSession";
 import { TopNav } from "@/components/TopNav";
 import { RulesEditor } from "@/components/RulesEditor";
 import { Explainer } from "@/components/Explainer";
+
 function describe(a: AuditEntry): string {
   const b = a.before as Record<string, unknown> | null;
   const n = a.after as Record<string, unknown> | null;
@@ -28,6 +29,7 @@ function describe(a: AuditEntry): string {
   if (a.action === "flag.create") return `created flag "${(n as { key?: string } | null)?.key ?? ""}"`;
   if (a.action === "flag.delete") return `deleted flag "${(b as { key?: string } | null)?.key ?? ""}"`;
   if (a.action === "project.create") return `created project "${(n as { name?: string } | null)?.name ?? ""}"`;
+  if (a.action === "flag.autorollback") return `🛑 auto-rollback: ${(n as { reason?: string } | null)?.reason ?? ""}`;
   return a.action;
 }
 
@@ -52,7 +54,7 @@ export default function ProjectView({ id }: { id: string }) {
   });
   const audit = useQuery({
     queryKey: ["audit"],
-      queryFn: () => api<{ items: AuditEntry[] }>("/projects/audit/logs?limit=10").then((r) => r.items),
+    queryFn: () => api<{ items: AuditEntry[] }>("/projects/audit/logs?limit=10").then((r) => r.items),
     enabled: !!session,
   });
 
@@ -185,6 +187,11 @@ export default function ProjectView({ id }: { id: string }) {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
+                  {cfg.rolledBackAt && !cfg.enabled && (
+                    <p className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+                      🛑 Auto-rolled back {new Date(cfg.rolledBackAt).toLocaleString()} because the error rate spiked.
+                    </p>
+                  )}
                   <p className="text-xs text-muted-foreground">Updated {new Date(cfg.updatedAt).toLocaleString()}</p>
                   <div className="flex items-center gap-4">
                     <span className="w-28 text-sm text-muted-foreground">Rollout: {cfg.rolloutPercentage}%</span>

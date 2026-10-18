@@ -29,6 +29,7 @@ export interface FlagConfig {
   rules: Rule[];
   updatedAt: string;
   environment: Environment;
+  rolledBackAt: string | null;
 }
 export interface Flag {
   id: string;

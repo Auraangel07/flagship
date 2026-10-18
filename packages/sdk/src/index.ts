@@ -23,6 +23,8 @@ export interface FlagshipOptions {
 export class FlagshipClient {
   private flags: Record<string, EvalResult> = {};
   private listeners = new Set<() => void>();
+  private queue: { flagKey: string; type: "exposure" | "error" }[] = [];
+  private timer: ReturnType<typeof setTimeout> | null = null;
   private stream: EventSourceLike | null = null;
   private user: User;
   private baseUrl: string;
@@ -75,7 +77,40 @@ export class FlagshipClient {
     return () => this.listeners.delete(cb);
   }
 
+    /** Record that this user was served the flag as ON. */
+  reportExposure(flagKey: string): void {
+    this.enqueue({ flagKey, type: "exposure" });
+  }
+
+  /** Record an error that happened while the flag was ON. */
+  reportError(flagKey: string): void {
+    this.enqueue({ flagKey, type: "error" });
+  }
+
+  private enqueue(e: { flagKey: string; type: "exposure" | "error" }) {
+    this.queue.push(e);
+    if (this.queue.length >= 50) void this.flush();
+    else if (!this.timer) this.timer = setTimeout(() => void this.flush(), 1000);
+  }
+
+  async flush(): Promise<void> {
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = null;
+    const events = this.queue.splice(0, 100);
+    if (events.length === 0) return;
+    try {
+      await this.fetchFn(`${this.baseUrl}/v1/events`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-sdk-key": this.opts.sdkKey },
+        body: JSON.stringify({ events }),
+      });
+    } catch {
+      /* telemetry must never break the host app */
+    }
+  }
+
   close(): void {
+    this.flush();
     this.stream?.close();
     this.stream = null;
     this.listeners.clear();
