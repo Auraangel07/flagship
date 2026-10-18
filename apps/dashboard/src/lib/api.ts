@@ -27,6 +27,7 @@ export interface FlagConfig {
   enabled: boolean;
   rolloutPercentage: number;
   rules: Rule[];
+  updatedAt: string;
   environment: Environment;
 }
 export interface Flag {
