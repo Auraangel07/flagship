@@ -76,7 +76,8 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   });
   if (res.status === 401 && session) {
     clearSession();
-    window.location.href = "/login";
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+window.location.href = "/login";
   }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));

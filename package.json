@@ -8,7 +8,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-  "lint": "eslint .",
+  "lint": "npm run lint --workspaces --if-present",
   "format": "prettier --write \"apps/**/*.ts\" \"packages/**/*.ts\"",
   "test": "npm test --workspaces --if-present"
   },
