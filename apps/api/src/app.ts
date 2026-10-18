@@ -11,6 +11,7 @@ import { env } from "./env";
 import pinoHttp from "pino-http";
 import { randomUUID } from "node:crypto";
 import { logger } from "./lib/logger";
+import { errorHandler, notFound } from "./middleware/errors";
 
 export const app = express();
 app.use(
@@ -83,3 +84,6 @@ app.use("/v1", sdkLimiter, sdkRouter);
 app.get("/admin/ping", authenticate, requireRole("ADMIN"), (_req, res) => {
   res.json({ message: "pong, admin" });
 });
+
+app.use(notFound);
+app.use(errorHandler);

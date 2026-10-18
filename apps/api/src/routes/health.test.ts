@@ -20,3 +20,8 @@ describe("health endpoints", () => {
     expect(res.body.database).toBe("up");
   });
 });
+it("returns JSON for unknown routes", async () => {
+  const res = await request(app).get("/does-not-exist");
+  expect(res.status).toBe(404);
+  expect(res.body.error).toBe("Not found");
+});
