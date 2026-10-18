@@ -80,22 +80,6 @@ describe("public SDK API", () => {
         rules: [{ attribute: "plan", operator: "equals", values: ["pro"] }],
       });
 
-  it("auto-rolls back a flag with a high error rate", async () => {
-  const events = [
-    ...Array.from({ length: 20 }, () => ({ flagKey: "beta-ui", type: "exposure" as const })),
-    ...Array.from({ length: 5 }, () => ({ flagKey: "beta-ui", type: "error" as const })),
-  ];
-  const res = await request(app).post("/v1/events").set("x-sdk-key", sdkKey).send({ events });
-  expect(res.status).toBe(202);
-  expect(res.body.rolledBack).toContain("beta-ui");
-
-  const after = await request(app)
-    .post("/v1/evaluate")
-    .set("x-sdk-key", sdkKey)
-    .send({ flagKey: "beta-ui", user: { key: "u1", plan: "pro" } });
-  expect(after.body.value).toBe(false);
-});
-
     const pro = await request(app)
       .post("/v1/evaluate")
       .set("x-sdk-key", sdkKey)
@@ -107,6 +91,22 @@ describe("public SDK API", () => {
       .set("x-sdk-key", sdkKey)
       .send({ flagKey: "beta-ui", user: { key: "u2", plan: "free" } });
     expect(free.body.value).toBe(false);
+  });
+
+    it("auto-rolls back a flag with a high error rate", async () => {
+    const events = [
+      ...Array.from({ length: 20 }, () => ({ flagKey: "beta-ui", type: "exposure" as const })),
+      ...Array.from({ length: 5 }, () => ({ flagKey: "beta-ui", type: "error" as const })),
+    ];
+    const res = await request(app).post("/v1/events").set("x-sdk-key", sdkKey).send({ events });
+    expect(res.status).toBe(202);
+    expect(res.body.rolledBack).toContain("beta-ui");
+
+    const after = await request(app)
+      .post("/v1/evaluate")
+      .set("x-sdk-key", sdkKey)
+      .send({ flagKey: "beta-ui", user: { key: "u1", plan: "pro" } });
+    expect(after.body.value).toBe(false);
   });
 
   it("evaluates all flags in one call", async () => {
