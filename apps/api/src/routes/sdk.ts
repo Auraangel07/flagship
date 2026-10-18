@@ -3,6 +3,8 @@ import { z } from "zod";
 import { evaluate } from "../engine/evaluate";
 import { getSnapshot, cacheStats } from "../lib/cache";
 import { addClient, removeClient, connectedClients } from "../lib/events";
+import { prisma } from "../lib/prisma";
+import { checkRollback } from "../lib/rollback";
 
 export const sdkRouter = Router();
 
@@ -81,4 +83,31 @@ sdkRouter.get("/stats", (_req, res) => {
     cacheHitRate: total ? +(cacheStats.hits / total).toFixed(3) : 0,
     streamClients: connectedClients(),
   });
+});
+
+const eventsSchema = z.object({
+  events: z
+    .array(z.object({ flagKey: z.string().min(1), type: z.enum(["exposure", "error"]) }))
+    .min(1)
+    .max(100),
+});
+
+sdkRouter.post("/events", async (req, res) => {
+  const sdkKey = req.header("x-sdk-key");
+  if (!sdkKey) return res.status(401).json({ error: "Missing x-sdk-key" });
+  const parsed = eventsSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  const snap = await getSnapshot(sdkKey);
+  if (!snap) return res.status(401).json({ error: "Invalid SDK key" });
+
+  await prisma.flagEvent.createMany({
+    data: parsed.data.events.map((e) => ({ environmentId: snap.environmentId, ...e })),
+  });
+
+  const rolledBack: string[] = [];
+  for (const key of new Set(parsed.data.events.filter((e) => e.type === "error").map((e) => e.flagKey))) {
+    if (await checkRollback(snap.environmentId, key)) rolledBack.push(key);
+  }
+  res.status(202).json({ accepted: parsed.data.events.length, rolledBack });
 });
