@@ -1,4 +1,4 @@
-import express from "express";
+import express, { NextFunction, Request, Response } from "express";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
@@ -12,6 +12,8 @@ import pinoHttp from "pino-http";
 import { randomUUID } from "node:crypto";
 import { logger } from "./lib/logger";
 import { errorHandler, notFound } from "./middleware/errors";
+import swaggerUi from "swagger-ui-express";
+import { openapi } from "./openapi";
 
 export const app = express();
 app.use(
@@ -60,7 +62,15 @@ app.get("/", (_req, res) => {
     endpoints: ["/health", "/ready", "/auth", "/projects", "/v1"],
   });
 });
-
+app.use(
+  "/docs",
+    (_req: Request, res: Response, next: NextFunction) => {
+    res.setHeader("Content-Security-Policy", "default-src 'self' 'unsafe-inline' data:");
+    next();
+  },
+  swaggerUi.serve,
+  swaggerUi.setup(openapi)
+);
 // Liveness: the process is up. Cheap, no dependencies.
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", service: "flagship-api" });

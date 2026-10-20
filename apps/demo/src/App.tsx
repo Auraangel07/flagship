@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { FlagshipClient } from "@flagship/sdk";
 import "./App.css";
 
-const SDK_KEY = "cmvcifj8z0006ujpcgwi1jebg"; // your development key
-const API = "http://localhost:4000";
+const SDK_KEY = import.meta.env.VITE_SDK_KEY as string;
+const API = (import.meta.env.VITE_API_URL as string) ?? "http://localhost:4000";
 
 const PRODUCTS = [
   { name: "Trail Runner Shoes", price: 89, emoji: "👟", tag: "Bestseller" },
