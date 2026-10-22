@@ -30,8 +30,10 @@ export class FlagshipClient {
   private baseUrl: string;
   private fetchFn: typeof fetch;
   private ES?: EventSourceCtor;
+  private opts: FlagshipOptions;
 
-  constructor(private opts: FlagshipOptions) {
+  constructor(opts: FlagshipOptions) {
+    this.opts = opts;
     this.user = opts.user;
     this.baseUrl = opts.baseUrl.replace(/\/+$/, "");
     this.fetchFn = opts.fetchImpl ?? ((...a) => fetch(...a));
