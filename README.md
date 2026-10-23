@@ -37,16 +37,16 @@ Ship code dark, turn features on per user, per percentage, per rule, and switch 
 
 ```mermaid
 flowchart LR
-  Dev[Developer] --> Dash[Dashboard<br/>Next.js 16]
-  Dash -->|JWT| API[API<br/>Express 5 + TS]
-  App[Your app] --> SDK[SDK<br/>@flagship/sdk]
-  SDK -->|snapshot + SSE| API
-  SDK -->|exposures / errors| API
-  API --> Cache[(In-memory<br/>snapshot cache)]
-  API --> DB[(PostgreSQL 16<br/>Prisma)]
-  API --> Roll[Auto-rollback]
+  Dev["Developer"] --> Dash["Dashboard<br/>Next.js 16"]
+  Dash -->|JWT| API["API<br/>Express 5 + TS"]
+  App["Your app"] --> SDK["SDK<br/>flagship-sdk"]
+  SDK -->|"snapshot + SSE"| API
+  SDK -->|"exposures / errors"| API
+  API --> Cache[("In-memory<br/>snapshot cache")]
+  API --> DB[("PostgreSQL 16<br/>Prisma")]
+  API --> Roll["Auto-rollback"]
   Roll --> DB
-  Roll -->|invalidate + broadcast| Cache
+  Roll -->|"invalidate + broadcast"| Cache
 ```
 
 ```
